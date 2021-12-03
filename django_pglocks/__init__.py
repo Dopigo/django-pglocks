@@ -68,7 +68,7 @@ def advisory_lock(lock_id, shared=False, wait=True, using=None, triggered_by=Non
         import inspect
         try:
             fi = inspect.stack()[-1]
-            func_name = fi.function
+            func_name = str(fi.function)
             command += " %s" % func_name
         except:
             pass
