@@ -1,6 +1,7 @@
 __version__ = '1.0.2'
 
 from contextlib import contextmanager
+from copy import deepcopy
 from zlib import crc32
 
 
@@ -31,7 +32,7 @@ def advisory_lock(lock_id, shared=False, wait=True, using=None, triggered_by=Non
     # Format up the parameters.
 
     tuple_format = False
-
+    lock_str = ""
     if isinstance(lock_id, (list, tuple,)):
         if len(lock_id) != 2:
             raise ValueError("Tuples and lists as lock IDs must have exactly two entries.")
@@ -39,11 +40,13 @@ def advisory_lock(lock_id, shared=False, wait=True, using=None, triggered_by=Non
         if not isinstance(lock_id[0], six.integer_types) or not isinstance(lock_id[1], six.integer_types):
             raise ValueError("Both members of a tuple/list lock ID must be integers")
 
+        lock_str = "%s" % repr(lock_id)
         tuple_format = True
     elif isinstance(lock_id, six.string_types):
         # Generates an id within postgres integer range (-2^31 to 2^31 - 1).
         # crc32 generates an unsigned integer in Py3, we convert it into
         # a signed integer using 2's complement (this is a noop in Py2)
+        lock_str = deepcopy(lock_id)
         pos = crc32(lock_id.encode("utf-8"))
         lock_id = (2 ** 31 - 1) & pos
         if pos & 2 ** 31:
@@ -61,7 +64,7 @@ def advisory_lock(lock_id, shared=False, wait=True, using=None, triggered_by=Non
     acquire_params = (function_name,) + params
 
     command = base % acquire_params
-    command += " -- %s" % str(lock_id)
+    command += " -- %s" % str(lock_str)
     if isinstance(triggered_by, str):
         command += " %s" % triggered_by
     else:
