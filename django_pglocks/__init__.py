@@ -3,9 +3,9 @@ __version__ = '1.0.2'
 from contextlib import contextmanager
 from zlib import crc32
 
-@contextmanager
-def advisory_lock(lock_id, shared=False, wait=True, using=None):
 
+@contextmanager
+def advisory_lock(lock_id, shared=False, wait=True, using=None, triggered_by=None):
     from django.db import DEFAULT_DB_ALIAS, connections, transaction
     from django.utils import six
 
@@ -45,9 +45,9 @@ def advisory_lock(lock_id, shared=False, wait=True, using=None):
         # crc32 generates an unsigned integer in Py3, we convert it into
         # a signed integer using 2's complement (this is a noop in Py2)
         pos = crc32(lock_id.encode("utf-8"))
-        lock_id = (2**31 - 1) & pos
-        if pos & 2**31:
-            lock_id -= 2**31
+        lock_id = (2 ** 31 - 1) & pos
+        if pos & 2 ** 31:
+            lock_id -= 2 ** 31
     elif not isinstance(lock_id, six.integer_types):
         raise ValueError("Cannot use %s as a lock id" % lock_id)
 
@@ -58,9 +58,23 @@ def advisory_lock(lock_id, shared=False, wait=True, using=None):
         base = "SELECT %s(%d)"
         params = (lock_id,)
 
-    acquire_params = ( function_name, ) + params
+    acquire_params = (function_name,) + params
 
     command = base % acquire_params
+    if isinstance(triggered_by, str):
+        command += " -- %s" % triggered_by
+    else:
+        import inspect
+        try:
+            fi = inspect.stack()[-1]
+            file_name = fi.filename.split("/")[-1]
+            line_no = str(fi.lineno)
+            func_name = fi.function
+            _locals = repr(fi.frame.f_locals)
+            command += " -- %s %s %s %s" % (file_name, line_no, func_name, _locals)
+        except:
+            pass
+
     cursor = connections[using].cursor()
 
     cursor.execute(command)
@@ -74,7 +88,7 @@ def advisory_lock(lock_id, shared=False, wait=True, using=None):
         yield acquired
     finally:
         if acquired:
-            release_params = ( release_function_name, ) + params
+            release_params = (release_function_name,) + params
 
             command = base % release_params
             cursor.execute(command)
