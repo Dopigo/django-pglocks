@@ -61,17 +61,15 @@ def advisory_lock(lock_id, shared=False, wait=True, using=None, triggered_by=Non
     acquire_params = (function_name,) + params
 
     command = base % acquire_params
+    command += " -- %s" % str(lock_id)
     if isinstance(triggered_by, str):
-        command += " -- %s" % triggered_by
+        command += " %s" % triggered_by
     else:
         import inspect
         try:
             fi = inspect.stack()[-1]
-            file_name = fi.filename.split("/")[-1]
-            line_no = str(fi.lineno)
             func_name = fi.function
-            _locals = repr(fi.frame.f_locals)
-            command += " -- %s %s %s %s" % (file_name, line_no, func_name, _locals)
+            command += " %s" % func_name
         except:
             pass
 
