@@ -66,11 +66,20 @@ def advisory_lock(lock_id, shared=False, wait=True, using=None, triggered_by=Non
         command += " %s" % triggered_by
     else:
         import inspect
+        function_names = ""
         try:
             func_name = str(inspect.stack()[1].function)
-            command += " %s" % func_name
+            function_names += " %s" % func_name
         except:
             pass
+
+        try:
+            func_name = str(inspect.stack()[2].function)
+            function_names += " %s" % func_name
+        except:
+            pass
+
+        command += " %s" % function_names
 
     cursor = connections[using].cursor()
 
